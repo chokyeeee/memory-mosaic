@@ -91,20 +91,25 @@ function getNextUploadIndex() {
     return -1;
 }
 
-// ✅ 修复渲染逻辑：使用 soft-light 半透明融合，保证背景和上传图都可见
+// ✅ 修复渲染：直接设置 style，确保混合模式生效
 function renderCellImage(cell, url) {
     cell.innerHTML = '';
     const img = document.createElement('img');
     img.src = url;
-    img.className = 'puzzle-img blend-mosaic';
+    // 直接设置样式，不依赖 CSS 类名
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'cover';
+    img.style.mixBlendMode = 'soft-light';
+    img.style.opacity = '0.85';
+    img.style.transition = 'opacity 0.5s ease';
     cell.appendChild(img);
 }
 
-// ✅ 修复背景透明度：始终保持背景可见，上传图越多，背景越清晰
+// ✅ 修复背景透明度：始终保持背景可见
 function updateBgOpacity() {
     const count = Object.keys(uploadedImages).length;
-    // 透明度从 0.4 缓慢提升到 0.9，保证背景始终可见
-    const opacity = 0.4 + (count / TOTAL_CELLS) * 0.5;
+    const opacity = 0.4 + (count / TOTAL_CELLS) * 0.5; // 0.4 → 0.9
     bgContainer.style.opacity = opacity;
 }
 
@@ -183,8 +188,8 @@ uploadBtn.addEventListener('click', () => {
     
     // 视觉提示
     const nextCell = puzzleGrid.children[nextIndex];
-    nextCell.classList.add('ring-2', 'ring-blue-500');
-    setTimeout(() => nextCell.classList.remove('ring-2', 'ring-blue-500'), 2000);
+    nextCell.style.outline = '2px solid #165DFF';
+    setTimeout(() => nextCell.style.outline = 'none', 2000);
 });
 
 // 点击外部关闭预览
