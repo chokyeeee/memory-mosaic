@@ -1,29 +1,36 @@
-@layer utilities {
-    .puzzle-grid {
-        display: grid;
-        grid-template-columns: repeat(10, 1fr);
-        grid-template-rows: repeat(6, 1fr);
-        gap: 1px;
-        position: relative;
-        z-index: 10;
-    }
-    .puzzle-cell {
-        aspect-ratio: 1/1;
-        position: relative;
-        overflow: hidden;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        background: transparent;
-    }
-    /* 核心：半透明融合模式，保证背景和上传图都可见 */
-    .blend-mosaic {
-        mix-blend-mode: soft-light;
-        opacity: 0.85;
-    }
-    .puzzle-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: opacity 0.5s ease;
-    }
+/* 拼图网格容器 */
+.puzzle-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    gap: 1px;
+    position: relative;
+    z-index: 10;
+}
+
+/* 单个拼图格子 */
+.puzzle-cell {
+    aspect-ratio: 1/1;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: transparent;
+}
+
+/* 上传图片样式：核心融合效果 */
+.puzzle-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* 直接写混合模式和透明度，不依赖 Tailwind */
+    mix-blend-mode: soft-light !important;
+    opacity: 0.85 !important;
+    transition: opacity 0.5s ease;
+}
+
+/* 预览弹窗图片 */
+.zoom-img {
+    max-height: 80vh;
+    max-width: 90vw;
 }
