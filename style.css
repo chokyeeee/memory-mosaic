@@ -12,7 +12,11 @@
         cursor: pointer;
         transition: all 0.3s ease;
     }
-    .bg-blend {
-        mix-blend-mode: overlay;
-    }
+    /* 多种混合模式预设 */
+    .blend-normal { mix-blend-mode: normal; }
+    .blend-overlay { mix-blend-mode: overlay; }
+    .blend-screen { mix-blend-mode: screen; }
+    .blend-multiply { mix-blend-mode: multiply; }
+    .blend-soft-light { mix-blend-mode: soft-light; }
+    .blend-luminosity { mix-blend-mode: luminosity; }
 }
