@@ -6,16 +6,11 @@
     <title>广技师12注会3 - 回忆拼图</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: { extend: { colors: { primary: '#165DFF' } } }
-        }
-    </script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
     <header class="bg-white shadow-sm py-6 text-center">
-        <h1 class="text-3xl font-bold text-primary mb-2">广技师12注会3</h1>
+        <h1 class="text-3xl font-bold text-blue-600 mb-2">广技师12注会3</h1>
         <p class="text-gray-600 mb-1">上传你的大学回忆照片，一起拼成班级拼图</p>
         <p class="text-sm text-gray-500" id="uploadCount">已上传 0/60 张</p>
     </header>
@@ -26,12 +21,12 @@
             <div class="absolute inset-0 z-0" id="bgContainer" style="opacity: 0.4;">
                 <img src="target.jpg" alt="背景图" class="w-full h-full object-cover">
             </div>
-            <!-- 拼图网格（上层） -->
+            <!-- 6×10拼图网格（上层） -->
             <div class="puzzle-grid relative z-10" id="puzzleGrid"></div>
         </div>
 
         <div class="flex flex-col gap-3 max-w-md mx-auto">
-            <button id="uploadBtn" class="bg-primary text-white py-3 px-6 rounded-lg font-medium flex items-center justify-center shadow hover:shadow-lg transition-all">
+            <button id="uploadBtn" class="bg-blue-600 text-white py-3 px-6 rounded-lg font-medium flex items-center justify-center shadow hover:shadow-lg transition-all">
                 <i class="fa fa-upload mr-2"></i> 上传照片（从中心开始）
             </button>
             <button id="resetBtn" class="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-medium flex items-center justify-center hover:bg-gray-300 transition-all">
@@ -45,7 +40,7 @@
         <div class="relative">
             <img id="previewImg" src="" alt="预览图片" class="max-h-[80vh] max-w-[90vw] rounded-lg">
             <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
-                <button id="replaceBtn" class="bg-primary text-white py-2 px-4 rounded-lg flex items-center">
+                <button id="replaceBtn" class="bg-blue-600 text-white py-2 px-4 rounded-lg flex items-center">
                     <i class="fa fa-exchange mr-1"></i> 替换
                 </button>
                 <button id="deleteBtn" class="bg-red-500 text-white py-2 px-4 rounded-lg flex items-center">
