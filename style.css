@@ -4,6 +4,8 @@
         grid-template-columns: repeat(10, 1fr);
         grid-template-rows: repeat(6, 1fr);
         gap: 1px;
+        position: relative;
+        z-index: 10;
     }
     .puzzle-cell {
         aspect-ratio: 1/1;
@@ -11,12 +13,17 @@
         overflow: hidden;
         cursor: pointer;
         transition: all 0.3s ease;
+        background: transparent;
     }
-    /* 多种混合模式预设 */
-    .blend-normal { mix-blend-mode: normal; }
-    .blend-overlay { mix-blend-mode: overlay; }
-    .blend-screen { mix-blend-mode: screen; }
-    .blend-multiply { mix-blend-mode: multiply; }
-    .blend-soft-light { mix-blend-mode: soft-light; }
-    .blend-luminosity { mix-blend-mode: luminosity; }
+    /* 核心：半透明融合模式，保证背景和上传图都可见 */
+    .blend-mosaic {
+        mix-blend-mode: soft-light;
+        opacity: 0.85;
+    }
+    .puzzle-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: opacity 0.5s ease;
+    }
 }
