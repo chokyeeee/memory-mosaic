@@ -2,10 +2,9 @@
 const GRID_ROWS = 6;
 const GRID_COLS = 10;
 const TOTAL_CELLS = GRID_ROWS * GRID_COLS;
-const CENTER_POS = 29; // 6x10 中心索引
-let uploadedImages = {};
+const CENTER_INDEX = 29; // 6×10中心位置索引（第30个格子）
+let uploadedImages = {}; // { index: { url: '', cellName: '' } }
 let currentEditIndex = -1;
-const UPLOAD_ORDER = calculateUploadOrder();
 
 // DOM元素
 const puzzleGrid = document.getElementById('puzzleGrid');
@@ -20,6 +19,13 @@ const closePreview = document.getElementById('closePreview');
 const bgContainer = document.getElementById('bgContainer');
 const uploadCount = document.getElementById('uploadCount');
 
+// 生成格子名称：1-1, 1-2 ... 6-10
+function getCellName(index) {
+    const row = Math.floor(index / GRID_COLS) + 1;
+    const col = (index % GRID_COLS) + 1;
+    return `${row}-${col}`;
+}
+
 // 初始化网格
 function initGrid() {
     puzzleGrid.innerHTML = '';
@@ -27,6 +33,8 @@ function initGrid() {
         const cell = document.createElement('div');
         cell.className = 'puzzle-cell';
         cell.dataset.index = i;
+        cell.dataset.name = getCellName(i); // 存储格子名称
+        cell.title = `格子 ${getCellName(i)}`; // 鼠标悬停提示
         cell.addEventListener('click', () => handleCellClick(i));
         
         if (uploadedImages[i]) {
@@ -38,22 +46,20 @@ function initGrid() {
     updateUploadCount();
 }
 
-// 计算中心向外上传顺序
-function calculateUploadOrder() {
-    const order = [CENTER_POS];
-    const visited = new Set([CENTER_POS]);
-    const directions = [-GRID_COLS, GRID_COLS, -1, 1];
-    let queue = [CENTER_POS];
+// 计算中心向外的上传顺序（按钮上传用）
+function getCenterOutOrder() {
+    const order = [CENTER_INDEX];
+    const visited = new Set([CENTER_INDEX]);
+    const directions = [-GRID_COLS, GRID_COLS, -1, 1]; // 上下左右
+    let queue = [CENTER_INDEX];
 
     while (queue.length > 0 && order.length < TOTAL_CELLS) {
         const current = queue.shift();
         for (const dir of directions) {
             const neighbor = current + dir;
             if (neighbor < 0 || neighbor >= TOTAL_CELLS) continue;
-            
-            if (dir === -1 && current % GRID_COLS === 0) continue;
-            if (dir === 1 && (current + 1) % GRID_COLS === 0) continue;
-            
+            if (dir === -1 && current % GRID_COLS === 0) continue; // 左边界
+            if (dir === 1 && (current + 1) % GRID_COLS === 0) continue; // 右边界
             if (!visited.has(neighbor)) {
                 visited.add(neighbor);
                 order.push(neighbor);
@@ -64,16 +70,17 @@ function calculateUploadOrder() {
     return order;
 }
 
-// 处理单元格点击
-function handleCellClick(index) {
-    const nextIndex = getNextUploadIndex();
-    if (!uploadedImages[index] && index !== nextIndex && nextIndex !== -1) {
-        alert(`请先上传中心向外第 ${UPLOAD_ORDER.indexOf(nextIndex) + 1} 个位置`);
-        currentEditIndex = nextIndex;
-        fileInput.click();
-        return;
+// 获取下一个待上传的中心位置（按钮上传用）
+function getNextCenterIndex() {
+    const order = getCenterOutOrder();
+    for (const idx of order) {
+        if (!uploadedImages[idx]) return idx;
     }
-    
+    return -1;
+}
+
+// 处理格子点击（直接上传用）
+function handleCellClick(index) {
     currentEditIndex = index;
     if (uploadedImages[index]) {
         previewImg.src = uploadedImages[index].url;
@@ -83,36 +90,23 @@ function handleCellClick(index) {
     }
 }
 
-// 获取下一个待上传位置
-function getNextUploadIndex() {
-    for (const index of UPLOAD_ORDER) {
-        if (!uploadedImages[index]) return index;
-    }
-    return -1;
-}
-
-// ✅ 修复渲染：直接设置 style，确保混合模式生效
+// 渲染格子图片（色调适配：soft-light混合模式）
 function renderCellImage(cell, url) {
     cell.innerHTML = '';
     const img = document.createElement('img');
     img.src = url;
-    // 直接设置样式，不依赖 CSS 类名
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'cover';
-    img.style.mixBlendMode = 'soft-light';
-    img.style.opacity = '0.85';
-    img.style.transition = 'opacity 0.5s ease';
+    img.className = 'puzzle-img';
     cell.appendChild(img);
 }
 
-// ✅ 修复背景透明度：始终保持背景可见
+// 更新背景透明度：上传越多越清晰
 function updateBgOpacity() {
     const count = Object.keys(uploadedImages).length;
     const opacity = 0.4 + (count / TOTAL_CELLS) * 0.5; // 0.4 → 0.9
     bgContainer.style.opacity = opacity;
 }
 
+// 更新上传计数
 function updateUploadCount() {
     const count = Object.keys(uploadedImages).length;
     uploadCount.textContent = `已上传 ${count}/${TOTAL_CELLS} 张`;
@@ -125,12 +119,15 @@ function updateUploadCount() {
 // 文件上传处理
 fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file || currentEditIndex === -1) return;
     
     const reader = new FileReader();
     reader.onload = (event) => {
         const imgUrl = event.target.result;
-        uploadedImages[currentEditIndex] = { url: imgUrl };
+        uploadedImages[currentEditIndex] = {
+            url: imgUrl,
+            cellName: getCellName(currentEditIndex)
+        };
         
         const cell = puzzleGrid.children[currentEditIndex];
         renderCellImage(cell, imgUrl);
@@ -138,6 +135,7 @@ fileInput.addEventListener('change', (e) => {
         updateBgOpacity();
         updateUploadCount();
         fileInput.value = '';
+        currentEditIndex = -1;
     };
     reader.readAsDataURL(file);
 });
@@ -155,11 +153,9 @@ replaceBtn.addEventListener('click', () => {
 
 deleteBtn.addEventListener('click', () => {
     if (currentEditIndex === -1) return;
-    
     delete uploadedImages[currentEditIndex];
     const cell = puzzleGrid.children[currentEditIndex];
     cell.innerHTML = '';
-    
     updateBgOpacity();
     updateUploadCount();
     previewModal.classList.add('hidden');
@@ -175,20 +171,18 @@ resetBtn.addEventListener('click', () => {
     }
 });
 
-// 一键上传（中心向外）
+// 按钮上传：自动从中心向外填充
 uploadBtn.addEventListener('click', () => {
-    const nextIndex = getNextUploadIndex();
+    const nextIndex = getNextCenterIndex();
     if (nextIndex === -1) {
         alert('拼图已满！60张照片已全部上传完成 ✨');
         return;
     }
-    
     currentEditIndex = nextIndex;
     fileInput.click();
-    
     // 视觉提示
     const nextCell = puzzleGrid.children[nextIndex];
-    nextCell.style.outline = '2px solid #165DFF';
+    nextCell.style.outline = '2px solid #2563eb';
     setTimeout(() => nextCell.style.outline = 'none', 2000);
 });
 
