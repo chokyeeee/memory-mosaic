@@ -3,57 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>广技师12注会3 - 回忆拼图</title>
+    <title>广技师12注会3 - 回忆拼图墙</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 核心样式 */
+        .puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 1px;
+        }
+        .puzzle-cell {
+            aspect-ratio: 1/1;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+        .puzzle-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            mix-blend-mode: soft-light;
+            opacity: 0.85;
+            transition: all 0.3s ease;
+        }
+        .puzzle-cell:hover .puzzle-img {
+            transform: scale(1.05);
+            opacity: 1;
+        }
+        .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
+    <!-- 顶部标题 -->
     <header class="bg-white shadow-sm py-6 text-center">
         <h1 class="text-3xl font-bold text-blue-600 mb-2">广技师12注会3</h1>
-        <p class="text-gray-600 mb-1">上传你的大学回忆照片，一起拼成班级拼图</p>
-        <p class="text-sm text-gray-500" id="uploadCount">已上传 0/60 张</p>
+        <p class="text-gray-600">青春回忆拼图墙 · 共赴美好时光</p>
     </header>
 
-    <main class="container mx-auto px-4 py-6">
-        <div class="relative rounded-lg overflow-hidden shadow-md mb-6">
-            <!-- 背景图（底层） -->
-            <div class="absolute inset-0 z-0" id="bgContainer" style="opacity: 0.4;">
-                <img src="target.jpg" alt="背景图" class="w-full h-full object-cover">
+    <main class="container mx-auto px-4 py-8">
+        <!-- 上传表单区域 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8 max-w-2xl mx-auto">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">添加你的回忆</h2>
+            
+            <div class="space-y-4">
+                <!-- 图片上传 -->
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
+                    <i class="fa fa-cloud-upload text-4xl text-gray-400 mb-2"></i>
+                    <p class="text-gray-600 mb-3">点击上传回忆照片</p>
+                    <input type="file" id="photoInput" class="hidden" accept="image/*">
+                    <button id="selectPhotoBtn" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        选择照片
+                    </button>
+                    <p id="photoName" class="text-sm text-gray-500 mt-2 hidden">已选择：<span></span></p>
+                </div>
+
+                <!-- 名字输入 -->
+                <div>
+                    <label class="block text-gray-700 mb-1">你的名字</label>
+                    <input type="text" id="nameInput" placeholder="请输入你的名字" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- 回忆文字 -->
+                <div>
+                    <label class="block text-gray-700 mb-1">一句回忆</label>
+                    <textarea id="memoryInput" placeholder="分享你的青春回忆..." rows="3"
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <!-- 提交按钮 -->
+                <button id="submitBtn" class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    加入拼图墙
+                </button>
             </div>
-            <!-- 6×10拼图网格（上层） -->
-            <div class="puzzle-grid relative z-10" id="puzzleGrid"></div>
         </div>
 
-        <div class="flex flex-col gap-3 max-w-md mx-auto">
-            <button id="uploadBtn" class="bg-blue-600 text-white py-3 px-6 rounded-lg font-medium flex items-center justify-center shadow hover:shadow-lg transition-all">
-                <i class="fa fa-upload mr-2"></i> 上传照片
-            </button>
-            <button id="resetBtn" class="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-medium flex items-center justify-center hover:bg-gray-300 transition-all">
-                <i class="fa fa-refresh mr-2"></i> 重置拼图
-            </button>
+        <!-- 拼图墙区域 -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">青春回忆马赛克墙</h2>
+            <div id="puzzleGrid" class="puzzle-grid"></div>
+            <p id="emptyTip" class="text-gray-500 text-center py-12">暂无回忆，快来添加第一个吧 ✨</p>
         </div>
     </main>
 
-    <!-- 预览弹窗 -->
-    <div id="previewModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden">
-        <div class="relative">
-            <img id="previewImg" src="" alt="预览图片" class="max-h-[80vh] max-w-[90vw] rounded-lg">
-            <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
-                <button id="replaceBtn" class="bg-blue-600 text-white py-2 px-4 rounded-lg flex items-center">
-                    <i class="fa fa-exchange mr-1"></i> 替换
+    <!-- 回忆详情弹窗 -->
+    <div id="memoryModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg w-full max-w-2xl mx-4 modal-content">
+            <div class="p-6">
+                <!-- 关闭按钮 -->
+                <button id="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
                 </button>
-                <button id="deleteBtn" class="bg-red-500 text-white py-2 px-4 rounded-lg flex items-center">
-                    <i class="fa fa-trash mr-1"></i> 删除
-                </button>
-                <button id="closePreview" class="bg-gray-600 text-white py-2 px-4 rounded-lg flex items-center">
-                    <i class="fa fa-times mr-1"></i> 关闭
-                </button>
+
+                <!-- 详情内容 -->
+                <div class="space-y-4">
+                    <!-- 大图展示 -->
+                    <div class="rounded-lg overflow-hidden">
+                        <img id="modalImg" src="" alt="回忆照片" class="w-full">
+                    </div>
+
+                    <!-- 上传者信息 -->
+                    <div>
+                        <h3 id="modalName" class="text-xl font-bold text-blue-600"></h3>
+                        <p id="modalMemory" class="text-gray-700 mt-2 italic">"</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <input type="file" id="fileInput" class="hidden" accept="image/*">
-    <script src="script.js"></script>
+    <script>
+        // 存储所有回忆数据
+        let memories = JSON.parse(localStorage.getItem('memories')) || [];
+        
+        // DOM元素
+        const photoInput = document.getElementById('photoInput');
+        const selectPhotoBtn = document.getElementById('selectPhotoBtn');
+        const photoName = document.getElementById('photoName');
+        const nameInput = document.getElementById('nameInput');
+        const memoryInput = document.getElementById('memoryInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const puzzleGrid = document.getElementById('puzzleGrid');
+        const emptyTip = document.getElementById('emptyTip');
+        const memoryModal = document.getElementById('memoryModal');
+        const closeModal = document.getElementById('closeModal');
+        const modalImg = document.getElementById('modalImg');
+        const modalName = document.getElementById('modalName');
+        const modalMemory = document.getElementById('modalMemory');
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPuzzleGrid();
+            updateSubmitButton();
+        });
+
+        // 选择照片
+        selectPhotoBtn.addEventListener('click', () => {
+            photoInput.click();
+        });
+
+        // 照片选择后预览
+        photoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                photoName.classList.remove('hidden');
+                photoName.querySelector('span').textContent = file.name;
+                updateSubmitButton();
+            } else {
+                photoName.classList.add('hidden');
+                updateSubmitButton();
+            }
+        });
+
+        // 输入内容变化时更新按钮状态
+        nameInput.addEventListener('input', updateSubmitButton);
+        memoryInput.addEventListener('input', updateSubmitButton);
+
+        // 更新提交按钮状态
+        function updateSubmitButton() {
+            const hasPhoto = photoInput.files.length > 0;
+            const hasName = nameInput.value.trim() !== '';
+            const hasMemory = memoryInput.value.trim() !== '';
+            
+            submitBtn.disabled = !(hasPhoto && hasName && hasMemory);
+        }
+
+        // 提交回忆
+        submitBtn.addEventListener('click', () => {
+            const file = photoInput.files[0];
+            const name = nameInput.value.trim();
+            const memory = memoryInput.value.trim();
+
+            // 转换图片为Base64
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                // 添加新回忆
+                const newMemory = {
+                    id: Date.now(),
+                    photoUrl: e.target.result,
+                    name: name,
+                    memory: memory,
+                    createTime: new Date().toLocaleString()
+                };
+
+                memories.push(newMemory);
+                
+                // 保存到本地存储
+                localStorage.setItem('memories', JSON.stringify(memories));
+                
+                // 重新渲染拼图墙
+                renderPuzzleGrid();
+                
+                // 重置表单
+                resetForm();
+                
+                // 提示成功
+                alert('回忆添加成功！已加入拼图墙 ✨');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 渲染拼图墙
+        function renderPuzzleGrid() {
+            // 清空网格
+            puzzleGrid.innerHTML = '';
+            
+            // 显示/隐藏空提示
+            if (memories.length === 0) {
+                emptyTip.classList.remove('hidden');
+                return;
+            } else {
+                emptyTip.classList.add('hidden');
+            }
+
+            // 生成马赛克墙
+            memories.forEach((item) => {
+                const cell = document.createElement('div');
+                cell.className = 'puzzle-cell';
+                cell.dataset.id = item.id;
+
+                const img = document.createElement('img');
+                img.src = item.photoUrl;
+                img.className = 'puzzle-img';
+                img.alt = `${item.name}的回忆`;
+
+                cell.appendChild(img);
+                
+                // 点击查看详情
+                cell.addEventListener('click', () => {
+                    showMemoryDetail(item);
+                });
+
+                puzzleGrid.appendChild(cell);
+            });
+        }
+
+        // 显示回忆详情
+        function showMemoryDetail(memory) {
+            modalImg.src = memory.photoUrl;
+            modalName.textContent = memory.name;
+            modalMemory.textContent = `"${memory.memory}"`;
+            
+            memoryModal.classList.remove('hidden');
+        }
+
+        // 关闭详情弹窗
+        closeModal.addEventListener('click', () => {
+            memoryModal.classList.add('hidden');
+        });
+
+        // 点击弹窗外部关闭
+        memoryModal.addEventListener('click', (e) => {
+            if (e.target === memoryModal) {
+                memoryModal.classList.add('hidden');
+            }
+        });
+
+        // 重置表单
+        function resetForm() {
+            photoInput.value = '';
+            nameInput.value = '';
+            memoryInput.value = '';
+            photoName.classList.add('hidden');
+            updateSubmitButton();
+        }
+    </script>
 </body>
 </html>
