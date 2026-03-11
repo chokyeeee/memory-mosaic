@@ -1,36 +1,196 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="zh-CN">
 <head>
-
-<meta charset="UTF-8">
-
-<title>广技师12注会3 回忆拼图</title>
-
-<link rel="stylesheet" href="style.css">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>广技师12注会3-回忆拼图</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        // Tailwind 配置
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#0E2C8A',
+                        neutral: '#F5F7FA',
+                        dark: '#1D2129',
+                    },
+                    fontFamily: {
+                        sans: ['PingFang SC', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .btn-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:translate-y-0;
+            }
+            .puzzle-container {
+                @apply relative w-full overflow-hidden rounded-lg border-4 border-white shadow-lg bg-neutral;
+            }
+        }
+    </style>
 </head>
+<body class="bg-gradient-to-b from-white to-neutral min-h-screen font-sans text-dark">
+    <!-- 主容器 -->
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        <!-- 头部区域 -->
+        <header class="text-center mb-8">
+            <h1 class="text-[clamp(1.8rem,5vw,2.5rem)] font-bold text-primary mb-3 text-shadow">
+                广技师12注会3
+            </h1>
+            <p class="text-[clamp(1rem,2vw,1.2rem)] text-gray-600 mb-2">
+                回忆拼图
+            </p>
+            <p class="text-sm text-gray-500 italic">
+                上传你的大学回忆照片，一起拼成班级拼图
+            </p>
+        </header>
 
-<body>
+        <!-- 拼图展示区域 -->
+        <div class="puzzle-container aspect-[4/3] mb-8">
+            <img src="https://picsum.photos/seed/class12/800/600" alt="班级回忆拼图" 
+                 class="w-full h-full object-cover">
+            <!-- 可添加加载遮罩 -->
+            <div id="loadingOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center hidden">
+                <div class="text-center">
+                    <i class="fa fa-spinner fa-spin text-primary text-3xl mb-2"></i>
+                    <p class="text-primary">正在生成拼图...</p>
+                </div>
+            </div>
+        </div>
 
-<h1>广技师12注会3 · 回忆拼图</h1>
+        <!-- 操作按钮区域 -->
+        <div class="flex flex-col gap-4 mb-6">
+            <button id="uploadBtn" class="btn-hover bg-primary text-white py-4 px-6 rounded-lg text-lg font-medium flex items-center justify-center">
+                <i class="fa fa-upload mr-2"></i>
+                上传照片
+            </button>
+            <button id="exportBtn" class="btn-hover bg-primary/90 text-white py-4 px-6 rounded-lg text-lg font-medium flex items-center justify-center">
+                <i class="fa fa-download mr-2"></i>
+                导出回忆拼图
+            </button>
+        </div>
 
-<p>上传你的大学回忆照片，一起拼成班级拼图</p>
+        <!-- 底部信息 -->
+        <footer class="text-center text-gray-500 text-sm mt-8">
+            <p>© 2026 广技师12注会3 班级纪念</p>
+        </footer>
+    </div>
 
-<div class="upload">
+    <!-- 图片上传模态框 -->
+    <div id="uploadModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl p-6 w-[90%] max-w-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-primary">上传照片</h3>
+                <button id="closeModal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                <i class="fa fa-cloud-upload text-5xl text-gray-400 mb-4"></i>
+                <p class="mb-4 text-gray-600">点击或拖拽照片到此处上传</p>
+                <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
+                <button id="selectFileBtn" class="btn-hover bg-primary/10 text-primary py-2 px-4 rounded-lg text-sm font-medium">
+                    选择照片
+                </button>
+            </div>
+            <div class="mt-4 text-right">
+                <button id="confirmUpload" class="btn-hover bg-primary text-white py-2 px-6 rounded-lg text-sm font-medium">
+                    确认上传
+                </button>
+            </div>
+        </div>
+    </div>
 
-<input type="file" id="upload">
+    <!-- JavaScript 交互逻辑 -->
+    <script>
+        // 获取DOM元素
+        const uploadBtn = document.getElementById('uploadBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const uploadModal = document.getElementById('uploadModal');
+        const closeModal = document.getElementById('closeModal');
+        const selectFileBtn = document.getElementById('selectFileBtn');
+        const fileInput = document.getElementById('fileInput');
+        const confirmUpload = document.getElementById('confirmUpload');
+        const loadingOverlay = document.getElementById('loadingOverlay');
 
-<button onclick="uploadPhoto()">上传照片</button>
+        // 上传按钮点击事件
+        uploadBtn.addEventListener('click', () => {
+            uploadModal.classList.remove('hidden');
+        });
 
-<p id="counter">0 / 60</p>
+        // 关闭模态框
+        closeModal.addEventListener('click', () => {
+            uploadModal.classList.add('hidden');
+        });
 
-</div>
+        // 点击外部关闭模态框
+        uploadModal.addEventListener('click', (e) => {
+            if (e.target === uploadModal) {
+                uploadModal.classList.add('hidden');
+            }
+        });
 
-<canvas id="mosaic"></canvas>
+        // 选择文件按钮
+        selectFileBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
 
-<script src="script.js"></script>
+        // 确认上传
+        confirmUpload.addEventListener('click', () => {
+            if (fileInput.files.length === 0) {
+                alert('请选择要上传的照片！');
+                return;
+            }
+            
+            // 显示加载遮罩
+            loadingOverlay.classList.remove('hidden');
+            uploadModal.classList.add('hidden');
+            
+            // 模拟上传和拼图生成过程
+            setTimeout(() => {
+                // 隐藏加载遮罩
+                loadingOverlay.classList.add('hidden');
+                alert('照片上传成功，拼图生成完成！');
+                
+                // 这里可以添加实际的拼图更新逻辑
+                // 例如更换拼图图片为新的组合
+            }, 2000);
+        });
 
+        // 导出拼图
+        exportBtn.addEventListener('click', () => {
+            loadingOverlay.classList.remove('hidden');
+            
+            // 模拟导出过程
+            setTimeout(() => {
+                loadingOverlay.classList.add('hidden');
+                
+                // 创建下载链接
+                const link = document.createElement('a');
+                link.download = '广技师12注会3-回忆拼图.png';
+                link.href = document.querySelector('.puzzle-container img').src;
+                link.click();
+                
+                alert('拼图导出成功！已保存到相册');
+            }, 1500);
+        });
+
+        // 响应式调整
+        window.addEventListener('resize', () => {
+            // 可添加响应式调整逻辑
+        });
+    </script>
 </body>
-
 </html>
