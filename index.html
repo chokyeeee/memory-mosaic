@@ -14,34 +14,25 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
-    <!-- 顶部标题 -->
-    <header class="bg-white shadow-sm sticky top-0 z-40">
-        <div class="container mx-auto px-4 py-4 text-center">
-            <h1 class="text-[clamp(1.5rem,4vw,2rem)] font-bold text-primary">广技师12注会3</h1>
-            <p class="text-gray-600">上传你的大学回忆照片，一起拼成班级拼图</p>
-            <div class="mt-2 text-sm text-gray-500">
-                <span id="uploadCount">已上传 0/60 张</span>
-            </div>
-        </div>
+    <header class="bg-white shadow-sm py-6 text-center">
+        <h1 class="text-3xl font-bold text-primary mb-2">广技师12注会3</h1>
+        <p class="text-gray-600 mb-1">上传你的大学回忆照片，一起拼成班级拼图</p>
+        <p class="text-sm text-gray-500" id="uploadCount">已上传 0/60 张</p>
     </header>
 
-    <!-- 主内容区 -->
     <main class="container mx-auto px-4 py-6">
-        <!-- 拼图容器 -->
-        <div class="relative mb-6 overflow-auto bg-white rounded-lg shadow-md p-2">
-            <!-- 背景图 -->
-            <div class="absolute inset-0 z-0 opacity-30 transition-opacity duration-700" id="bgContainer">
+        <div class="relative rounded-lg overflow-hidden shadow-md mb-6">
+            <!-- 背景图（底层） -->
+            <div class="absolute inset-0 z-0" id="bgContainer" style="opacity: 0.4;">
                 <img src="target.jpg" alt="背景图" class="w-full h-full object-cover">
             </div>
-            
-            <!-- 6×10拼图网格 -->
+            <!-- 拼图网格（上层） -->
             <div class="puzzle-grid relative z-10" id="puzzleGrid"></div>
         </div>
 
-        <!-- 操作按钮 -->
-        <div class="flex flex-col gap-3 mb-8">
+        <div class="flex flex-col gap-3 max-w-md mx-auto">
             <button id="uploadBtn" class="bg-primary text-white py-3 px-6 rounded-lg font-medium flex items-center justify-center shadow hover:shadow-lg transition-all">
-                <i class="fa fa-upload mr-2"></i> 上传照片
+                <i class="fa fa-upload mr-2"></i> 上传照片（从中心开始）
             </button>
             <button id="resetBtn" class="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-medium flex items-center justify-center hover:bg-gray-300 transition-all">
                 <i class="fa fa-refresh mr-2"></i> 重置拼图
@@ -49,7 +40,7 @@
         </div>
     </main>
 
-    <!-- 图片预览弹窗 -->
+    <!-- 预览弹窗 -->
     <div id="previewModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden">
         <div class="relative">
             <img id="previewImg" src="" alt="预览图片" class="max-h-[80vh] max-w-[90vw] rounded-lg">
@@ -67,9 +58,7 @@
         </div>
     </div>
 
-    <!-- 隐藏的文件输入 -->
     <input type="file" id="fileInput" class="hidden" accept="image/*">
-
     <script src="script.js"></script>
 </body>
 </html>
