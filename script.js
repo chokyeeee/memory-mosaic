@@ -1,43 +1,182 @@
-// 核心修改：简化 renderCellImage 函数
+// 核心配置
+const GRID_ROWS = 6;
+const GRID_COLS = 10;
+const TOTAL_CELLS = GRID_ROWS * GRID_COLS;
+const CENTER_POS = 29; // 6x10 中心索引
+let uploadedImages = {};
+let currentEditIndex = -1;
+
+// DOM元素
+const puzzleGrid = document.getElementById('puzzleGrid');
+const uploadBtn = document.getElementById('uploadBtn');
+const resetBtn = document.getElementById('resetBtn');
+const fileInput = document.getElementById('fileInput');
+const previewModal = document.getElementById('previewModal');
+const previewImg = document.getElementById('previewImg');
+const replaceBtn = document.getElementById('replaceBtn');
+const deleteBtn = document.getElementById('deleteBtn');
+const closePreview = document.getElementById('closePreview');
+const bgContainer = document.getElementById('bgContainer');
+const uploadCount = document.getElementById('uploadCount');
+
+// 初始化网格
+function initGrid() {
+    puzzleGrid.innerHTML = '';
+    const uploadOrder = calculateUploadOrder();
+    
+    for (let i = 0; i < TOTAL_CELLS; i++) {
+        const cell = document.createElement('div');
+        cell.className = `puzzle-cell bg-gray-100/50`;
+        cell.dataset.index = i;
+        cell.addEventListener('click', () => handleCellClick(i));
+        
+        if (uploadedImages[i]) {
+            renderCellImage(cell, uploadedImages[i].url);
+        }
+        puzzleGrid.appendChild(cell);
+    }
+    updateBgOpacity();
+    updateUploadCount();
+}
+
+// 计算中心向外上传顺序
+function calculateUploadOrder() {
+    const order = [CENTER_POS];
+    const visited = new Set([CENTER_POS]);
+    const directions = [-GRID_COLS, GRID_COLS, -1, 1]; // 上下左右
+    let queue = [CENTER_POS];
+
+    while (queue.length > 0 && order.length < TOTAL_CELLS) {
+        const current = queue.shift();
+        for (const dir of directions) {
+            const neighbor = current + dir;
+            if (neighbor < 0 || neighbor >= TOTAL_CELLS) continue;
+            
+            const currentRow = Math.floor(current / GRID_COLS);
+            const neighborRow = Math.floor(neighbor / GRID_COLS);
+            if (dir === -1 && current % GRID_COLS === 0) continue;
+            if (dir === 1 && (current + 1) % GRID_COLS === 0) continue;
+            
+            if (!visited.has(neighbor)) {
+                visited.add(neighbor);
+                order.push(neighbor);
+                queue.push(neighbor);
+            }
+        }
+    }
+    return order;
+}
+
+// 处理单元格点击
+function handleCellClick(index) {
+    currentEditIndex = index;
+    if (uploadedImages[index]) {
+        previewImg.src = uploadedImages[index].url;
+        previewModal.classList.remove('hidden');
+    } else {
+        fileInput.click();
+    }
+}
+
+// 渲染单元格图片
 function renderCellImage(cell, url) {
     cell.innerHTML = '';
     const img = document.createElement('img');
     img.src = url;
-    // 移除 bg-blend，直接显示图片
-    img.className = 'w-full h-full object-cover transition-all duration-500';
+    img.className = 'w-full h-full object-cover bg-blend transition-all duration-500';
     cell.appendChild(img);
     cell.classList.remove('bg-gray-100/50');
     cell.classList.add('bg-white');
 }
 
-// 修复文件上传错误处理
+// 更新背景透明度
+function updateBgOpacity() {
+    const count = Object.keys(uploadedImages).length;
+    const opacity = 0.3 + (count / TOTAL_CELLS) * 0.7;
+    bgContainer.style.opacity = opacity;
+}
+
+// 更新上传计数
+function updateUploadCount() {
+    const count = Object.keys(uploadedImages).length;
+    uploadCount.textContent = `已上传 ${count}/${TOTAL_CELLS} 张`;
+}
+
+// 文件上传处理
 fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    console.log('上传文件:', file); // 调试日志
     const reader = new FileReader();
     reader.onload = (event) => {
-        try {
-            const imgUrl = event.target.result;
-            uploadedImages[currentEditIndex] = { url: imgUrl };
-            
-            const cell = puzzleGrid.children[currentEditIndex];
-            if (!cell) throw new Error('单元格不存在');
-            
-            renderCellImage(cell, imgUrl);
-            updateBgOpacity();
-            updateUploadCount();
-            console.log('图片渲染成功');
-        } catch (err) {
-            console.error('渲染失败:', err);
-            alert('图片加载失败，请重试');
-        }
-    };
-    reader.onerror = (err) => {
-        console.error('文件读取失败:', err);
-        alert('文件读取失败');
+        const imgUrl = event.target.result;
+        uploadedImages[currentEditIndex] = { url: imgUrl };
+        
+        const cell = puzzleGrid.children[currentEditIndex];
+        renderCellImage(cell, imgUrl);
+        
+        updateBgOpacity();
+        updateUploadCount();
+        fileInput.value = '';
     };
     reader.readAsDataURL(file);
-    fileInput.value = ''; // 清空以支持重复上传
 });
+
+// 预览弹窗操作
+closePreview.addEventListener('click', () => {
+    previewModal.classList.add('hidden');
+    currentEditIndex = -1;
+});
+
+replaceBtn.addEventListener('click', () => {
+    previewModal.classList.add('hidden');
+    fileInput.click();
+});
+
+deleteBtn.addEventListener('click', () => {
+    if (currentEditIndex === -1) return;
+    
+    delete uploadedImages[currentEditIndex];
+    const cell = puzzleGrid.children[currentEditIndex];
+    cell.innerHTML = '';
+    cell.classList.add('bg-gray-100/50');
+    cell.classList.remove('bg-white');
+    
+    updateBgOpacity();
+    updateUploadCount();
+    previewModal.classList.add('hidden');
+    currentEditIndex = -1;
+});
+
+// 重置拼图
+resetBtn.addEventListener('click', () => {
+    if (confirm('确定要重置所有拼图吗？已上传的图片将全部删除！')) {
+        uploadedImages = {};
+        bgContainer.style.opacity = 0.3;
+        initGrid();
+    }
+});
+
+// 一键上传
+uploadBtn.addEventListener('click', () => {
+    const uploadOrder = calculateUploadOrder();
+    for (const index of uploadOrder) {
+        if (!uploadedImages[index]) {
+            currentEditIndex = index;
+            fileInput.click();
+            return;
+        }
+    }
+    alert('拼图已满！60张照片已全部上传完成');
+});
+
+// 点击外部关闭
+previewModal.addEventListener('click', (e) => {
+    if (e.target === previewModal) {
+        previewModal.classList.add('hidden');
+        currentEditIndex = -1;
+    }
+});
+
+// 初始化
+window.addEventListener('load', initGrid);
