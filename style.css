@@ -1,23 +1,18 @@
-body{
-
-font-family:Arial;
-
-text-align:center;
-
-background:#f4f6fa;
-
-}
-
-canvas{
-
-margin-top:20px;
-
-border:2px solid #ddd;
-
-}
-
-.upload{
-
-margin-top:30px;
-
+@layer utilities {
+    .puzzle-grid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        grid-template-rows: repeat(6, 1fr);
+        gap: 1px;
+    }
+    .puzzle-cell {
+        aspect-ratio: 1/1;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .bg-blend {
+        mix-blend-mode: overlay;
+    }
 }
