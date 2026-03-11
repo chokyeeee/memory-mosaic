@@ -1,154 +1,182 @@
-// 核心配置参数
-const MAX_PHOTOS = 60; // 总拼图数量
-const COLS = 10;       // 列数
-const ROWS = 6;        // 行数
-const TILE = 120;      // 每格尺寸(px)
+// 核心配置
+const GRID_ROWS = 6;
+const GRID_COLS = 10;
+const TOTAL_CELLS = GRID_ROWS * GRID_COLS;
+const CENTER_POS = 29; // 6x10 中心索引
+let uploadedImages = {};
+let currentEditIndex = -1;
 
-// 获取画布和上下文
-const canvas = document.getElementById("mosaic");
-const ctx = canvas.getContext("2d");
+// DOM元素
+const puzzleGrid = document.getElementById('puzzleGrid');
+const uploadBtn = document.getElementById('uploadBtn');
+const resetBtn = document.getElementById('resetBtn');
+const fileInput = document.getElementById('fileInput');
+const previewModal = document.getElementById('previewModal');
+const previewImg = document.getElementById('previewImg');
+const replaceBtn = document.getElementById('replaceBtn');
+const deleteBtn = document.getElementById('deleteBtn');
+const closePreview = document.getElementById('closePreview');
+const bgContainer = document.getElementById('bgContainer');
+const uploadCount = document.getElementById('uploadCount');
 
-// 设置画布尺寸
-canvas.width = COLS * TILE;
-canvas.height = ROWS * TILE;
-
-// 已上传照片计数
-let count = 0;
-
-// 加载背景图
-const target = new Image();
-target.src = "target.jpg"; // 匹配你仓库里的背景图文件名
-target.crossOrigin = "anonymous"; // 解决跨域加载问题
-
-// 背景图加载失败提示
-target.onerror = function() {
-  alert("❌ 背景图加载失败！请检查：\n1. 文件名是否为 bg.jpg\n2. 文件是否在根目录\n3. 文件格式是否为 jpg");
-};
-
-// 存储每个格子的目标色调
-let colorMap = [];
-
-// 背景图加载完成后处理
-target.onload = function() {
-  // 创建临时画布计算色调
-  let temp = document.createElement("canvas");
-  let tctx = temp.getContext("2d");
-  temp.width = canvas.width;
-  temp.height = canvas.height;
-  
-  // 绘制背景图到临时画布
-  tctx.drawImage(target, 0, 0, canvas.width, canvas.height);
-  
-  // 获取背景图像素数据
-  let data = tctx.getImageData(0, 0, temp.width, temp.height).data;
-  
-  // 计算每个格子的平均色调
-  for(let y = 0; y < ROWS; y++) {
-    for(let x = 0; x < COLS; x++) {
-      let r = 0, g = 0, b = 0, pixelCount = 0;
-      
-      // 遍历当前格子的所有像素
-      for(let yy = 0; yy < TILE; yy++) {
-        for(let xx = 0; xx < TILE; xx++) {
-          let pixelIndex = ((y * TILE + yy) * temp.width + (x * TILE + xx)) * 4;
-          r += data[pixelIndex];
-          g += data[pixelIndex + 1];
-          b += data[pixelIndex + 2];
-          pixelCount++;
+// 初始化网格
+function initGrid() {
+    puzzleGrid.innerHTML = '';
+    const uploadOrder = calculateUploadOrder();
+    
+    for (let i = 0; i < TOTAL_CELLS; i++) {
+        const cell = document.createElement('div');
+        cell.className = `puzzle-cell bg-gray-100/50`;
+        cell.dataset.index = i;
+        cell.addEventListener('click', () => handleCellClick(i));
+        
+        if (uploadedImages[i]) {
+            renderCellImage(cell, uploadedImages[i].url);
         }
-      }
-      
-      // 存储当前格子的平均色调
-      colorMap.push({
-        r: r / pixelCount,
-        g: g / pixelCount,
-        b: b / pixelCount
-      });
+        puzzleGrid.appendChild(cell);
     }
-  }
-  
-  // ✅ 核心修复：将背景图绘制到主画布（能看到背景了）
-  ctx.drawImage(target, 0, 0, canvas.width, canvas.height);
-};
-
-// 上传照片核心函数
-function uploadPhoto() {
-  // 检查是否已填满
-  if(count >= MAX_PHOTOS) {
-    alert("🎉 拼图已全部完成！");
-    return;
-  }
-  
-  // 获取上传文件
-  let fileInput = document.getElementById("upload");
-  if(!fileInput.files || fileInput.files.length === 0) {
-    alert("⚠️ 请先选择一张照片再上传！");
-    return;
-  }
-  
-  let file = fileInput.files[0];
-  // 只允许图片格式
-  if(!file.type.startsWith("image/")) {
-    alert("❌ 请上传图片格式的文件（jpg/png等）！");
-    return;
-  }
-  
-  // 加载上传的图片
-  let img = new Image();
-  img.src = URL.createObjectURL(file);
-  
-  img.onload = function() {
-    // 1. 中心裁剪为1:1比例
-    let size = Math.min(img.width, img.height);
-    let tileCanvas = document.createElement("canvas");
-    tileCanvas.width = TILE;
-    tileCanvas.height = TILE;
-    let tileCtx = tileCanvas.getContext("2d");
-    
-    // 绘制并裁剪图片
-    tileCtx.drawImage(
-      img,
-      (img.width - size) / 2,  // 裁剪起始X
-      (img.height - size) / 2, // 裁剪起始Y
-      size, size,              // 裁剪尺寸
-      0, 0,                    // 绘制起始位置
-      TILE, TILE               // 目标尺寸
-    );
-    
-    // 2. 匹配对应格子的背景色调
-    let currentIndex = count;
-    let targetColor = colorMap[currentIndex];
-    
-    // 获取裁剪后图片的像素数据
-    let imgData = tileCtx.getImageData(0, 0, TILE, TILE);
-    let pixelData = imgData.data;
-    
-    // 混合色调（上传图片色调 + 背景格子色调）
-    for(let i = 0; i < pixelData.length; i += 4) {
-      pixelData[i] = (pixelData[i] + targetColor.r) / 2;     // R通道
-      pixelData[i + 1] = (pixelData[i + 1] + targetColor.g) / 2; // G通道
-      pixelData[i + 2] = (pixelData[i + 2] + targetColor.b) / 2; // B通道
-      // 保留透明度（A通道）
-    }
-    
-    // 应用色调调整后的像素数据
-    tileCtx.putImageData(imgData, 0, 0);
-    
-    // 3. 计算当前照片的位置并绘制到画布
-    let posX = currentIndex % COLS * TILE;  // X坐标
-    let posY = Math.floor(currentIndex / COLS) * TILE; // Y坐标
-    ctx.drawImage(tileCanvas, posX, posY);
-    
-    // 4. 更新计数
-    count++;
-    document.getElementById("counter").innerText = count + " / 60";
-    
-    // 清空文件选择框（方便再次上传）
-    fileInput.value = "";
-  };
-  
-  // 图片加载失败处理
-  img.onerror = function() {
-    alert("❌ 图片加载失败，请换一张照片试试！");
-  };
+    updateBgOpacity();
+    updateUploadCount();
 }
+
+// 计算中心向外上传顺序
+function calculateUploadOrder() {
+    const order = [CENTER_POS];
+    const visited = new Set([CENTER_POS]);
+    const directions = [-GRID_COLS, GRID_COLS, -1, 1]; // 上下左右
+    let queue = [CENTER_POS];
+
+    while (queue.length > 0 && order.length < TOTAL_CELLS) {
+        const current = queue.shift();
+        for (const dir of directions) {
+            const neighbor = current + dir;
+            if (neighbor < 0 || neighbor >= TOTAL_CELLS) continue;
+            
+            const currentRow = Math.floor(current / GRID_COLS);
+            const neighborRow = Math.floor(neighbor / GRID_COLS);
+            if (dir === -1 && current % GRID_COLS === 0) continue;
+            if (dir === 1 && (current + 1) % GRID_COLS === 0) continue;
+            
+            if (!visited.has(neighbor)) {
+                visited.add(neighbor);
+                order.push(neighbor);
+                queue.push(neighbor);
+            }
+        }
+    }
+    return order;
+}
+
+// 处理单元格点击
+function handleCellClick(index) {
+    currentEditIndex = index;
+    if (uploadedImages[index]) {
+        previewImg.src = uploadedImages[index].url;
+        previewModal.classList.remove('hidden');
+    } else {
+        fileInput.click();
+    }
+}
+
+// 渲染单元格图片
+function renderCellImage(cell, url) {
+    cell.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = url;
+    img.className = 'w-full h-full object-cover bg-blend transition-all duration-500';
+    cell.appendChild(img);
+    cell.classList.remove('bg-gray-100/50');
+    cell.classList.add('bg-white');
+}
+
+// 更新背景透明度
+function updateBgOpacity() {
+    const count = Object.keys(uploadedImages).length;
+    const opacity = 0.3 + (count / TOTAL_CELLS) * 0.7;
+    bgContainer.style.opacity = opacity;
+}
+
+// 更新上传计数
+function updateUploadCount() {
+    const count = Object.keys(uploadedImages).length;
+    uploadCount.textContent = `已上传 ${count}/${TOTAL_CELLS} 张`;
+}
+
+// 文件上传处理
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const imgUrl = event.target.result;
+        uploadedImages[currentEditIndex] = { url: imgUrl };
+        
+        const cell = puzzleGrid.children[currentEditIndex];
+        renderCellImage(cell, imgUrl);
+        
+        updateBgOpacity();
+        updateUploadCount();
+        fileInput.value = '';
+    };
+    reader.readAsDataURL(file);
+});
+
+// 预览弹窗操作
+closePreview.addEventListener('click', () => {
+    previewModal.classList.add('hidden');
+    currentEditIndex = -1;
+});
+
+replaceBtn.addEventListener('click', () => {
+    previewModal.classList.add('hidden');
+    fileInput.click();
+});
+
+deleteBtn.addEventListener('click', () => {
+    if (currentEditIndex === -1) return;
+    
+    delete uploadedImages[currentEditIndex];
+    const cell = puzzleGrid.children[currentEditIndex];
+    cell.innerHTML = '';
+    cell.classList.add('bg-gray-100/50');
+    cell.classList.remove('bg-white');
+    
+    updateBgOpacity();
+    updateUploadCount();
+    previewModal.classList.add('hidden');
+    currentEditIndex = -1;
+});
+
+// 重置拼图
+resetBtn.addEventListener('click', () => {
+    if (confirm('确定要重置所有拼图吗？已上传的图片将全部删除！')) {
+        uploadedImages = {};
+        bgContainer.style.opacity = 0.3;
+        initGrid();
+    }
+});
+
+// 一键上传
+uploadBtn.addEventListener('click', () => {
+    const uploadOrder = calculateUploadOrder();
+    for (const index of uploadOrder) {
+        if (!uploadedImages[index]) {
+            currentEditIndex = index;
+            fileInput.click();
+            return;
+        }
+    }
+    alert('拼图已满！60张照片已全部上传完成');
+});
+
+// 点击外部关闭
+previewModal.addEventListener('click', (e) => {
+    if (e.target === previewModal) {
+        previewModal.classList.add('hidden');
+        currentEditIndex = -1;
+    }
+});
+
+// 初始化
+window.addEventListener('load', initGrid);
