@@ -1,4 +1,4 @@
-// GET /api/image?name=1-1 — 代理 GitHub 图片（避免国内直连 raw.githubusercontent.com 慢）
+// GET /api/image?v=1&name=1-1 — 代理 GitHub 图片
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -10,11 +10,12 @@ export default async function handler(req, res) {
   }
 
   const { GITHUB_TOKEN, GITHUB_REPO } = process.env;
+  const version = req.query.v || '1';
+  const dir = `photos/v${version}`;
 
   try {
-    // 列出 photos 目录找到对应文件
     const listRes = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/contents/photos`,
+      `https://api.github.com/repos/${GITHUB_REPO}/contents/${dir}`,
       {
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -36,9 +37,8 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'not found' });
     }
 
-    // 通过 GitHub API 获取文件内容（base64）
     const fileRes = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/contents/photos/${target.name}`,
+      `https://api.github.com/repos/${GITHUB_REPO}/contents/${dir}/${target.name}`,
       {
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -54,7 +54,6 @@ export default async function handler(req, res) {
     const fileData = await fileRes.json();
     const buffer = Buffer.from(fileData.content, 'base64');
 
-    // 根据扩展名推断 Content-Type
     const ext = target.name.split('.').pop().toLowerCase();
     const mimeMap = {
       jpg: 'image/jpeg',

@@ -4,6 +4,9 @@ const GRID_COLS = CONFIG.gridCols;
 const TOTAL_CELLS = GRID_ROWS * GRID_COLS;
 const CENTER_INDEX = CONFIG.centerIndex;
 
+// 从 URL 读取版本号，如 ?v=2，默认 v1
+const VERSION = new URLSearchParams(window.location.search).get('v') || '1';
+
 let uploadedImages = {}; // { index: { url, cellName } }
 let currentEditIndex = -1;
 let isUploading = false;
@@ -134,8 +137,8 @@ function readAsDataURL(file) {
 // 尝试连接服务器，成功则用 GitHub 存储
 async function detectServerMode() {
     try {
-        console.log('[检测] 尝试连接 /api/cells ...');
-        const res = await fetch('/api/cells');
+        console.log(`[检测] 尝试连接 /api/cells?v=${VERSION} ...`);
+        const res = await fetch(`/api/cells?v=${VERSION}`);
         console.log('[检测] /api/cells 响应状态:', res.status);
         if (res.ok) {
             useServer = true;
@@ -145,7 +148,7 @@ async function detectServerMode() {
             for (const cell of data.cells) {
                 const index = cellNameToIndex(cell.name);
                 uploadedImages[index] = {
-                    url: `/api/image?name=${cell.name}`,
+                    url: `/api/image?v=${VERSION}&name=${cell.name}`,
                     cellName: cell.name,
                 };
             }
@@ -167,8 +170,8 @@ async function handleUpload(cellName, file, cellIndex) {
     console.log(`[上传] 压缩后大小: ${(compressed.size / 1024).toFixed(1)}KB`);
 
     if (useServer) {
-        console.log(`[上传] 使用服务器模式，PUT /api/upload?name=${cellName}`);
-        const res = await fetch(`/api/upload?name=${cellName}`, {
+        console.log(`[上传] 使用服务器模式，PUT /api/upload?v=${VERSION}&name=${cellName}`);
+        const res = await fetch(`/api/upload?v=${VERSION}&name=${cellName}`, {
             method: 'PUT',
             headers: { 'Content-Type': compressed.type },
             body: compressed,
@@ -179,7 +182,7 @@ async function handleUpload(cellName, file, cellIndex) {
             console.error('[上传] 服务器返回错误:', err);
             throw new Error(err.error || '上传失败');
         }
-        const url = `/api/image?name=${cellName}&t=${Date.now()}`;
+        const url = `/api/image?v=${VERSION}&name=${cellName}&t=${Date.now()}`;
         console.log(`[上传] 上传成功，图片地址: ${url}`);
         return url;
     } else {
@@ -191,8 +194,8 @@ async function handleUpload(cellName, file, cellIndex) {
 // 删除图片
 async function handleDelete(cellName) {
     if (useServer) {
-        console.log(`[删除] DELETE /api/delete?name=${cellName}`);
-        const res = await fetch(`/api/delete?name=${cellName}`, { method: 'DELETE' });
+        console.log(`[删除] DELETE /api/delete?v=${VERSION}&name=${cellName}`);
+        const res = await fetch(`/api/delete?v=${VERSION}&name=${cellName}`, { method: 'DELETE' });
         console.log(`[删除] 响应状态: ${res.status}`);
         if (!res.ok) throw new Error('删除失败');
         console.log(`[删除] ${cellName} 删除成功`);

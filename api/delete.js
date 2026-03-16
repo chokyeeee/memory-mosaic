@@ -1,4 +1,4 @@
-// DELETE /api/delete?name=1-1 — 从 GitHub 仓库删除某格图片
+// DELETE /api/delete?v=1&name=1-1 — 从 GitHub 仓库删除某格图片
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'DELETE, OPTIONS');
@@ -18,11 +18,12 @@ export default async function handler(req, res) {
   }
 
   const { GITHUB_TOKEN, GITHUB_REPO } = process.env;
+  const version = req.query.v || '1';
+  const dir = `photos/v${version}`;
 
   try {
-    // 列出 photos 目录找到对应文件
     const listRes = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/contents/photos`,
+      `https://api.github.com/repos/${GITHUB_REPO}/contents/${dir}`,
       {
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
     );
 
     if (!listRes.ok) {
-      return res.status(200).json({ ok: true }); // 目录不存在，无需删除
+      return res.status(200).json({ ok: true });
     }
 
     const files = await listRes.json();
@@ -40,7 +41,7 @@ export default async function handler(req, res) {
       const fName = f.name.replace(/\.[^.]+$/, '');
       if (fName === cellName) {
         await fetch(
-          `https://api.github.com/repos/${GITHUB_REPO}/contents/photos/${f.name}`,
+          `https://api.github.com/repos/${GITHUB_REPO}/contents/${dir}/${f.name}`,
           {
             method: 'DELETE',
             headers: {
@@ -49,7 +50,7 @@ export default async function handler(req, res) {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              message: `删除 ${cellName}`,
+              message: `[v${version}] 删除 ${cellName}`,
               sha: f.sha,
             }),
           }
