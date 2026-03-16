@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>广技师12注会3 - 回忆拼图</title>
+    <title>回忆拼图</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
     <header class="bg-white shadow-sm py-6 text-center">
-        <h1 class="text-3xl font-bold text-blue-600 mb-2">广技师12注会3</h1>
-        <p class="text-gray-600 mb-1">上传你的大学回忆照片，一起拼成班级拼图</p>
-        <p class="text-sm text-gray-500" id="uploadCount">已上传 0/60 张</p>
+        <h1 class="text-3xl font-bold text-blue-600 mb-2" id="pageTitle"></h1>
+        <p class="text-gray-600 mb-1" id="pageSubtitle"></p>
+        <p class="text-sm text-gray-500" id="uploadCount">加载中...</p>
     </header>
 
     <main class="container mx-auto px-4 py-6">
         <div class="relative rounded-lg overflow-hidden shadow-md mb-6">
-            <!-- 背景图（底层） -->
-            <div class="absolute inset-0 z-0" id="bgContainer" style="opacity: 0.4;">
-                <img src="target.jpg" alt="背景图" class="w-full h-full object-cover">
+            <!-- 背景目标图（底层） -->
+            <div class="absolute inset-0 z-0" id="bgContainer">
+                <img id="bgImage" src="" alt="背景图" class="w-full h-full object-cover">
             </div>
-            <!-- 6×10拼图网格（上层） -->
+            <!-- 拼图网格（上层，半透明格子叠在背景图上） -->
             <div class="puzzle-grid relative z-10" id="puzzleGrid"></div>
         </div>
 
@@ -54,6 +54,15 @@
     </div>
 
     <input type="file" id="fileInput" class="hidden" accept="image/*">
+    <script src="config.js"></script>
+    <script>
+        // 应用配置到页面
+        document.getElementById('pageTitle').textContent = CONFIG.title;
+        document.getElementById('pageSubtitle').textContent = CONFIG.subtitle;
+        document.getElementById('bgImage').src = CONFIG.targetImage;
+        document.querySelector('.puzzle-grid').style.gridTemplateColumns = `repeat(${CONFIG.gridCols}, 1fr)`;
+        document.querySelector('.puzzle-grid').style.gridTemplateRows = `repeat(${CONFIG.gridRows}, 1fr)`;
+    </script>
     <script src="script.js"></script>
 </body>
 </html>

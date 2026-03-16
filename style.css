@@ -1,35 +1,51 @@
-/* 6×10网格容器 */
+/* 网格容器 */
 .puzzle-grid {
     display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    grid-template-rows: repeat(6, 1fr);
     gap: 1px;
     position: relative;
     z-index: 10;
+    background: transparent;
 }
 
-/* 单个格子：1:1比例，命名为1-1到6-10 */
+/* 单个格子：空格子用白色半透明蒙版，让背景图柔和透出 */
 .puzzle-cell {
     aspect-ratio: 1/1;
     position: relative;
     overflow: hidden;
     cursor: pointer;
     transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+/* 有照片的格子：去掉白色蒙版，背景图在该区域清晰透出 */
+.puzzle-cell.has-image {
     background: transparent;
 }
 
-/* 上传图片：核心融合效果 */
+/* 上传的照片 */
 .puzzle-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    mix-blend-mode: soft-light;
-    opacity: 0.8;
-    transition: all 0.5s ease;
+    display: block;
 }
 
-/* 悬停高亮 */
+/* 色调叠加层：用目标图的对应区域（不是纯色），保留自然色彩过渡 */
+.cell-tint {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+/* 悬停时减弱叠加，露出原始照片 */
+.puzzle-cell:hover .cell-tint {
+    opacity: 0.1 !important;
+}
+
+/* 悬停边框 */
 .puzzle-cell:hover {
-    outline: 2px solid #2563eb;
+    outline: 2px solid #fff;
     outline-offset: -2px;
+    z-index: 1;
 }
