@@ -1,4 +1,4 @@
-// PUT /api/upload?name=1-1 — 上传图片到 GitHub 仓库
+// PUT /api/upload?v=1&name=1-1 — 上传图片到 GitHub 仓库
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
 };
@@ -22,12 +22,13 @@ export default async function handler(req, res) {
   }
 
   const { GITHUB_TOKEN, GITHUB_REPO } = process.env;
+  const version = req.query.v || '1';
+  const dir = `photos/v${version}`;
   const contentType = req.headers['content-type'] || 'image/jpeg';
   const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
-  const filePath = `photos/${cellName}.${ext}`;
+  const filePath = `${dir}/${cellName}.${ext}`;
 
   try {
-    // 读取请求体为 Buffer
     const chunks = [];
     for await (const chunk of req) {
       chunks.push(chunk);
@@ -35,12 +36,11 @@ export default async function handler(req, res) {
     const buffer = Buffer.concat(chunks);
     const base64Content = buffer.toString('base64');
 
-    // 检查文件是否已存在（需要 sha 来更新）
     let sha = undefined;
 
-    // 先尝试删除同名但不同扩展名的旧文件
+    // 检查同格子是否已有文件
     const listRes = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/contents/photos`,
+      `https://api.github.com/repos/${GITHUB_REPO}/contents/${dir}`,
       {
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -55,12 +55,10 @@ export default async function handler(req, res) {
         const fName = f.name.replace(/\.[^.]+$/, '');
         if (fName === cellName) {
           if (f.name === `${cellName}.${ext}`) {
-            // 同文件名同扩展名 → 更新，需要 sha
             sha = f.sha;
           } else {
-            // 同格子不同扩展名 → 删除旧文件
             await fetch(
-              `https://api.github.com/repos/${GITHUB_REPO}/contents/photos/${f.name}`,
+              `https://api.github.com/repos/${GITHUB_REPO}/contents/${dir}/${f.name}`,
               {
                 method: 'DELETE',
                 headers: {
@@ -69,7 +67,7 @@ export default async function handler(req, res) {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  message: `删除旧图片 ${f.name}`,
+                  message: `[v${version}] 删除旧图片 ${f.name}`,
                   sha: f.sha,
                 }),
               }
@@ -79,9 +77,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // 上传（创建或更新）文件
     const body = {
-      message: `上传 ${cellName}`,
+      message: `[v${version}] 上传 ${cellName}`,
       content: base64Content,
     };
     if (sha) body.sha = sha;
@@ -104,11 +101,7 @@ export default async function handler(req, res) {
       throw new Error(JSON.stringify(err));
     }
 
-    const result = await uploadRes.json();
-    return res.status(200).json({
-      ok: true,
-      download_url: result.content.download_url,
-    });
+    return res.status(200).json({ ok: true });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: e.message });
