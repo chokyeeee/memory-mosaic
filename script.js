@@ -521,11 +521,17 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
             ctx.stroke();
         }
 
-        // 5. 下载
-        const link = document.createElement('a');
-        link.download = '回忆拼图.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        // 5. 导出：弹出图片，支持手机长按保存
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const overlay = document.createElement('div');
+        overlay.id = 'exportOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;';
+        overlay.innerHTML = `
+            <p style="color:#fff;margin-bottom:12px;font-size:14px;">长按图片保存到相册</p>
+            <img src="${dataUrl}" style="max-width:90vw;max-height:70vh;border-radius:8px;">
+            <button onclick="this.parentElement.remove()" style="margin-top:16px;padding:10px 32px;background:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;">关闭</button>
+        `;
+        document.body.appendChild(overlay);
 
         console.log(`[导出] 成功，尺寸: ${EXPORT_W}x${EXPORT_H}`);
     } catch (err) {
