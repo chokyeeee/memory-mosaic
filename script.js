@@ -415,6 +415,128 @@ uploadBtn.addEventListener('click', () => {
     setTimeout(() => (nextCell.style.outline = 'none'), 2000);
 });
 
+// ========== 导出图片 ==========
+
+function loadImage(src) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+    });
+}
+
+document.getElementById('exportBtn').addEventListener('click', async () => {
+    const count = Object.keys(uploadedImages).length;
+    if (count === 0) {
+        alert('还没有上传任何照片');
+        return;
+    }
+
+    const btn = document.getElementById('exportBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 生成中...';
+
+    try {
+        // 画布尺寸（高清输出）
+        const EXPORT_W = GRID_COLS * 200; // 每格 200px
+        const EXPORT_H = GRID_ROWS * 200;
+        const cellW = 200;
+        const cellH = 200;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = EXPORT_W;
+        canvas.height = EXPORT_H;
+        const ctx = canvas.getContext('2d');
+
+        // 1. 画背景目标图
+        const bgImg = await loadImage(CONFIG.targetImage);
+        ctx.drawImage(bgImg, 0, 0, EXPORT_W, EXPORT_H);
+
+        // 2. 空格子画白色半透明蒙版
+        for (let i = 0; i < TOTAL_CELLS; i++) {
+            if (!uploadedImages[i]) {
+                const row = Math.floor(i / GRID_COLS);
+                const col = i % GRID_COLS;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fillRect(col * cellW, row * cellH, cellW, cellH);
+            }
+        }
+
+        // 3. 有图的格子：画照片 + 目标图色调叠加
+        for (const [indexStr, data] of Object.entries(uploadedImages)) {
+            const i = parseInt(indexStr);
+            const row = Math.floor(i / GRID_COLS);
+            const col = i % GRID_COLS;
+            const x = col * cellW;
+            const y = row * cellH;
+
+            // 画上传的照片
+            try {
+                const photo = await loadImage(data.url);
+                // 居中裁剪（模拟 object-fit: cover）
+                const srcRatio = photo.width / photo.height;
+                const dstRatio = cellW / cellH;
+                let sx, sy, sw, sh;
+                if (srcRatio > dstRatio) {
+                    sh = photo.height;
+                    sw = sh * dstRatio;
+                    sx = (photo.width - sw) / 2;
+                    sy = 0;
+                } else {
+                    sw = photo.width;
+                    sh = sw / dstRatio;
+                    sx = 0;
+                    sy = (photo.height - sh) / 2;
+                }
+                ctx.drawImage(photo, sx, sy, sw, sh, x, y, cellW, cellH);
+
+                // 叠加目标图对应区域（半透明）
+                ctx.globalAlpha = CONFIG.tintOpacity;
+                const bgSx = (col / GRID_COLS) * bgImg.width;
+                const bgSy = (row / GRID_ROWS) * bgImg.height;
+                const bgSw = bgImg.width / GRID_COLS;
+                const bgSh = bgImg.height / GRID_ROWS;
+                ctx.drawImage(bgImg, bgSx, bgSy, bgSw, bgSh, x, y, cellW, cellH);
+                ctx.globalAlpha = 1.0;
+            } catch (e) {
+                console.warn(`[导出] 加载图片失败: ${data.cellName}`, e);
+            }
+        }
+
+        // 4. 画网格线
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.lineWidth = 1;
+        for (let r = 1; r < GRID_ROWS; r++) {
+            ctx.beginPath();
+            ctx.moveTo(0, r * cellH);
+            ctx.lineTo(EXPORT_W, r * cellH);
+            ctx.stroke();
+        }
+        for (let c = 1; c < GRID_COLS; c++) {
+            ctx.beginPath();
+            ctx.moveTo(c * cellW, 0);
+            ctx.lineTo(c * cellW, EXPORT_H);
+            ctx.stroke();
+        }
+
+        // 5. 下载
+        const link = document.createElement('a');
+        link.download = '回忆拼图.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+
+        console.log(`[导出] 成功，尺寸: ${EXPORT_W}x${EXPORT_H}`);
+    } catch (err) {
+        alert('导出失败，请重试');
+        console.error('[导出] 失败:', err);
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa fa-download mr-2"></i> 导出图片';
+});
+
 // 关闭预览
 previewModal.addEventListener('click', (e) => {
     if (e.target === previewModal) {
