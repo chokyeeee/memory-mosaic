@@ -4,10 +4,11 @@ const GRID_COLS = CONFIG.gridCols;
 const TOTAL_CELLS = GRID_ROWS * GRID_COLS;
 const CENTER_INDEX = CONFIG.centerIndex;
 
-let uploadedImages = {}; // { index: { url: dataURL, cellName: '' } }
+let uploadedImages = {}; // { index: { url, cellName } }
 let currentEditIndex = -1;
 let isUploading = false;
-let cellColors = []; // 每个格子从目标图提取的平均颜色
+let cellColors = [];
+let useServer = false; // 是否使用 GitHub 存储（自动检测）
 
 // DOM元素
 const puzzleGrid = document.getElementById('puzzleGrid');
@@ -120,13 +121,62 @@ function compressImage(file) {
     });
 }
 
-// 读取文件为 data URL
 function readAsDataURL(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
         reader.readAsDataURL(file);
     });
+}
+
+// ========== 存储层：自动切换 GitHub / 本地 ==========
+
+// 尝试连接服务器，成功则用 GitHub 存储
+async function detectServerMode() {
+    try {
+        const res = await fetch('/api/cells');
+        if (res.ok) {
+            useServer = true;
+            const data = await res.json();
+            for (const cell of data.cells) {
+                const index = cellNameToIndex(cell.name);
+                uploadedImages[index] = {
+                    url: `/api/image?name=${cell.name}`,
+                    cellName: cell.name,
+                };
+            }
+        }
+    } catch {
+        useServer = false;
+    }
+}
+
+// 上传图片
+async function handleUpload(cellName, file, cellIndex) {
+    const compressed = await compressImage(file);
+
+    if (useServer) {
+        const res = await fetch(`/api/upload?name=${cellName}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': compressed.type },
+            body: compressed,
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || '上传失败');
+        }
+        return `/api/image?name=${cellName}&t=${Date.now()}`;
+    } else {
+        return await readAsDataURL(compressed);
+    }
+}
+
+// 删除图片
+async function handleDelete(cellName) {
+    if (useServer) {
+        const res = await fetch(`/api/delete?name=${cellName}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('删除失败');
+    }
 }
 
 // ========== 网格渲染 ==========
@@ -154,20 +204,17 @@ function initGrid() {
 function renderCellImage(cell, url, index) {
     cell.innerHTML = '';
 
-    // 照片层
     const img = document.createElement('img');
     img.src = url;
     img.className = 'puzzle-img';
     cell.appendChild(img);
 
-    // 叠加层：用目标图的对应区域（非纯色），保持自然色彩
     const row = Math.floor(index / GRID_COLS);
     const col = index % GRID_COLS;
     const tint = document.createElement('div');
     tint.className = 'cell-tint';
     tint.style.backgroundImage = `url(${CONFIG.targetImage})`;
     tint.style.backgroundSize = `${GRID_COLS * 100}% ${GRID_ROWS * 100}%`;
-    // 百分比定位：让背景图的对应区域对齐到这个格子
     const xPos = GRID_COLS > 1 ? (col / (GRID_COLS - 1)) * 100 : 0;
     const yPos = GRID_ROWS > 1 ? (row / (GRID_ROWS - 1)) * 100 : 0;
     tint.style.backgroundPosition = `${xPos}% ${yPos}%`;
@@ -223,7 +270,8 @@ function handleCellClick(index) {
 
 function updateUploadCount() {
     const count = Object.keys(uploadedImages).length;
-    uploadCount.textContent = `已上传 ${count}/${TOTAL_CELLS} 张`;
+    const modeLabel = useServer ? '' : '（本地模式）';
+    uploadCount.textContent = `已上传 ${count}/${TOTAL_CELLS} 张${modeLabel}`;
     if (count === TOTAL_CELLS) {
         uploadCount.textContent += ' ✨ 拼图完成！';
     }
@@ -241,7 +289,7 @@ function setUploading(state) {
     uploadBtn.classList.toggle('cursor-not-allowed', state);
 }
 
-// 文件上传（本地模式：压缩后转 data URL）
+// 文件上传
 fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file || currentEditIndex === -1) return;
@@ -258,18 +306,15 @@ fileInput.addEventListener('change', async (e) => {
     setUploading(true);
 
     try {
-        const compressed = await compressImage(file);
-        const dataUrl = await readAsDataURL(compressed);
-        uploadedImages[currentEditIndex] = { url: dataUrl, cellName };
+        const imageUrl = await handleUpload(cellName, file, currentEditIndex);
+        uploadedImages[currentEditIndex] = { url: imageUrl, cellName };
         cell.classList.add('has-image');
-        renderCellImage(cell, dataUrl, currentEditIndex);
+        renderCellImage(cell, imageUrl, currentEditIndex);
         updateUploadCount();
     } catch (err) {
-        alert('处理图片失败，请重试');
-        const color = cellColors[currentEditIndex];
+        alert('上传失败，请重试');
         cell.innerHTML = '';
         cell.classList.remove('has-image');
-        if (color) cell.style.backgroundColor = `rgb(${color.r},${color.g},${color.b})`;
         console.error(err);
     }
 
@@ -289,20 +334,46 @@ replaceBtn.addEventListener('click', () => {
     fileInput.click();
 });
 
-deleteBtn.addEventListener('click', () => {
+deleteBtn.addEventListener('click', async () => {
     if (currentEditIndex === -1) return;
-    delete uploadedImages[currentEditIndex];
-    const cell = puzzleGrid.children[currentEditIndex];
-    cell.classList.remove('has-image');
-    cell.innerHTML = '';
-    updateUploadCount();
+    const cellName = getCellName(currentEditIndex);
+
+    try {
+        await handleDelete(cellName);
+        delete uploadedImages[currentEditIndex];
+        const cell = puzzleGrid.children[currentEditIndex];
+        cell.classList.remove('has-image');
+        cell.innerHTML = '';
+        updateUploadCount();
+    } catch (err) {
+        alert('删除失败，请重试');
+        console.error(err);
+    }
+
     previewModal.classList.add('hidden');
     currentEditIndex = -1;
 });
 
 // 重置
-resetBtn.addEventListener('click', () => {
+resetBtn.addEventListener('click', async () => {
     if (!confirm('确定要重置所有拼图吗？已上传的图片将全部删除！')) return;
+
+    if (useServer) {
+        setUploading(true);
+        try {
+            const names = Object.values(uploadedImages).map((img) => img.cellName);
+            for (const name of names) {
+                await handleDelete(name);
+            }
+        } catch (err) {
+            alert('重置失败，请重试');
+            console.error(err);
+            setUploading(false);
+            return;
+        }
+        setUploading(false);
+    }
+
     uploadedImages = {};
     initGrid();
 });
@@ -341,5 +412,7 @@ window.addEventListener('resize', () => {
 window.addEventListener('load', async () => {
     uploadCount.textContent = '加载中...';
     cellColors = await extractCellColors(CONFIG.targetImage);
+    await detectServerMode();
     initGrid();
+    console.log(`存储模式: ${useServer ? 'GitHub' : '本地'}`);
 });
