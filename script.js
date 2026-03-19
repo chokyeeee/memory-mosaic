@@ -225,18 +225,13 @@ function initGrid() {
     updateUploadCount();
 }
 
-// 渲染格子：照片 + 目标图对应区域作为叠加层（修复了错位问题）
+// 渲染格子：照片 + 目标图对应区域作为叠加层
 function renderCellImage(cell, url, index) {
     cell.innerHTML = '';
 
     const img = document.createElement('img');
     img.src = url;
     img.className = 'puzzle-img';
-    // 强制图片填满格子，消除偏移
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'cover';
-    img.style.display = 'block';
     cell.appendChild(img);
 
     const row = Math.floor(index / GRID_COLS);
@@ -245,22 +240,11 @@ function renderCellImage(cell, url, index) {
     tint.className = 'cell-tint';
     tint.style.backgroundImage = `url(${CONFIG.targetImage})`;
     tint.style.backgroundSize = `${GRID_COLS * 100}% ${GRID_ROWS * 100}%`;
-    // ✅ 核心修复：等分定位算法（原算法用了 cols-1/rows-1 导致错位）
-    const xPos = (col / GRID_COLS) * 100;
-    const yPos = (row / GRID_ROWS) * 100;
+    const xPos = GRID_COLS > 1 ? (col / (GRID_COLS - 1)) * 100 : 0;
+    const yPos = GRID_ROWS > 1 ? (row / (GRID_ROWS - 1)) * 100 : 0;
     tint.style.backgroundPosition = `${xPos}% ${yPos}%`;
     tint.style.opacity = CONFIG.tintOpacity;
-    // 确保tint层覆盖整个格子
-    tint.style.position = 'absolute';
-    tint.style.top = 0;
-    tint.style.left = 0;
-    tint.style.width = '100%';
-    tint.style.height = '100%';
     cell.appendChild(tint);
-    
-    // 确保单元格是相对定位，tint层绝对定位生效
-    cell.style.position = 'relative';
-    cell.style.overflow = 'hidden';
 }
 
 // ========== 上传顺序（中心向外BFS） ==========
