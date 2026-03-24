@@ -55,9 +55,6 @@ export default async function handler(req, res) {
             }),
           }
         );
-        // #region agent log
-        fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:'refresh-ghost-images',hypothesisId:'H2',location:'api/delete.js:handler',message:'GitHub delete request finished',data:{cellName,fileName:f.name,status:delRes.status,ok:delRes.ok,version},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
       }
     }
 

@@ -12,7 +12,6 @@ let currentEditIndex = -1;
 let isUploading = false;
 let cellColors = [];
 let useServer = false; // 是否使用 GitHub 存储（自动检测）
-const DEBUG_RUN_ID = 'refresh-ghost-images';
 
 // DOM元素
 const puzzleGrid = document.getElementById('puzzleGrid');
@@ -144,9 +143,6 @@ async function detectServerMode() {
         if (res.ok) {
             useServer = true;
             const data = await res.json();
-            // #region agent log
-            fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H1',location:'script.js:detectServerMode',message:'Fetched cells from server',data:{status:res.status,count:data.cells.length,names:data.cells.map(c=>c.name).slice(0,20)},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             console.log('[检测] 服务器模式已启用，已有图片:', data.cells.length, '张');
             console.log('[检测] 图片列表:', data.cells.map(c => c.name));
             for (const cell of data.cells) {
@@ -160,16 +156,10 @@ async function detectServerMode() {
             const text = await res.text();
             console.warn('[检测] /api/cells 返回非 200:', res.status, text);
             useServer = false;
-            // #region agent log
-            fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H4',location:'script.js:detectServerMode',message:'Server mode unavailable',data:{status:res.status},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
         }
     } catch (e) {
         console.warn('[检测] 无法连接服务器，使用本地模式:', e.message);
         useServer = false;
-        // #region agent log
-        fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H4',location:'script.js:detectServerMode',message:'Server mode check threw error',data:{message:e.message},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
     }
 }
 
@@ -397,9 +387,6 @@ resetBtn.addEventListener('click', async () => {
         setUploading(true);
         try {
             const names = Object.values(uploadedImages).map((img) => img.cellName);
-            // #region agent log
-            fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H2',location:'script.js:resetBtn',message:'Reset started deleting server images',data:{count:names.length,names:names.slice(0,20)},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             for (const name of names) {
                 await handleDelete(name);
             }
@@ -414,9 +401,6 @@ resetBtn.addEventListener('click', async () => {
 
     uploadedImages = {};
     initGrid();
-    // #region agent log
-    fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H3',location:'script.js:resetBtn',message:'Reset finished client-side',data:{remainingClientCount:Object.keys(uploadedImages).length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 });
 
 // 按钮上传
