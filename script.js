@@ -140,7 +140,6 @@ function readAsDataURL(file) {
 // ========== 存储层：自动切换 GitHub / 本地 ==========
 
 function saveLocalCache() {
-    if (useServer) return;
     try {
         localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(uploadedImages));
         // #region agent log
@@ -186,6 +185,7 @@ function applyServerCells(cells) {
         };
     }
     uploadedImages = next;
+    saveLocalCache();
     initGrid();
 }
 
@@ -203,7 +203,23 @@ async function detectServerMode() {
             // #endregion
             console.log('[检测] 服务器模式已启用，已有图片:', data.cells.length, '张');
             console.log('[检测] 图片列表:', data.cells.map(c => c.name));
-            applyServerCells(data.cells);
+            const cachedRaw = localStorage.getItem(LOCAL_CACHE_KEY);
+            let cachedCount = 0;
+            if (cachedRaw) {
+                try {
+                    const parsed = JSON.parse(cachedRaw);
+                    cachedCount = parsed && typeof parsed === 'object' ? Object.keys(parsed).length : 0;
+                } catch (e) {
+                    cachedCount = 0;
+                }
+            }
+            if (data.cells.length === 0 && cachedCount > 0) {
+                // 服务端暂时空列表时，优先保留本地缓存，避免刷新后误清空
+                loadLocalCache();
+                initGrid();
+            } else {
+                applyServerCells(data.cells);
+            }
         } else {
             const text = await res.text();
             console.warn('[检测] /api/cells 返回非 200:', res.status, text);
