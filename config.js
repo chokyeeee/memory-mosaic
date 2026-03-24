@@ -27,4 +27,7 @@ const CONFIG = {
     maxFileSizeMB: 5,     // 最大文件大小（MB）
     compressMaxWidth: 800, // 压缩后最大宽度（px）
     compressQuality: 0.8,  // 压缩质量（0-1）
+
+    // 同步设置
+    syncIntervalMs: 5000,   // 多人协作时轮询同步间隔（毫秒）
 };

@@ -12,6 +12,10 @@ let currentEditIndex = -1;
 let isUploading = false;
 let cellColors = [];
 let useServer = false; // 是否使用 GitHub 存储（自动检测）
+let syncTimer = null;
+let isSyncing = false;
+const SYNC_INTERVAL_MS = CONFIG.syncIntervalMs || 5000;
+const LOCAL_CACHE_KEY = `memory-mosaic:v${VERSION}`;
 
 // DOM元素
 const puzzleGrid = document.getElementById('puzzleGrid');
@@ -134,6 +138,50 @@ function readAsDataURL(file) {
 
 // ========== 存储层：自动切换 GitHub / 本地 ==========
 
+function saveLocalCache() {
+    if (useServer) return;
+    try {
+        localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(uploadedImages));
+    } catch (e) {
+        console.warn('[本地缓存] 保存失败:', e.message);
+    }
+}
+
+function loadLocalCache() {
+    try {
+        const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+            uploadedImages = parsed;
+            console.log('[本地缓存] 已恢复图片数量:', Object.keys(uploadedImages).length);
+        }
+    } catch (e) {
+        console.warn('[本地缓存] 读取失败:', e.message);
+    }
+}
+
+function clearLocalCache() {
+    try {
+        localStorage.removeItem(LOCAL_CACHE_KEY);
+    } catch (e) {
+        console.warn('[本地缓存] 清空失败:', e.message);
+    }
+}
+
+function applyServerCells(cells) {
+    const next = {};
+    for (const cell of cells) {
+        const index = cellNameToIndex(cell.name);
+        next[index] = {
+            url: `/api/image?v=${VERSION}&name=${cell.name}&t=${Date.now()}`,
+            cellName: cell.name,
+        };
+    }
+    uploadedImages = next;
+    initGrid();
+}
+
 // 尝试连接服务器，成功则用 GitHub 存储
 async function detectServerMode() {
     try {
@@ -145,22 +193,44 @@ async function detectServerMode() {
             const data = await res.json();
             console.log('[检测] 服务器模式已启用，已有图片:', data.cells.length, '张');
             console.log('[检测] 图片列表:', data.cells.map(c => c.name));
-            for (const cell of data.cells) {
-                const index = cellNameToIndex(cell.name);
-                uploadedImages[index] = {
-                    url: `/api/image?v=${VERSION}&name=${cell.name}`,
-                    cellName: cell.name,
-                };
-            }
+            applyServerCells(data.cells);
         } else {
             const text = await res.text();
             console.warn('[检测] /api/cells 返回非 200:', res.status, text);
             useServer = false;
+            loadLocalCache();
         }
     } catch (e) {
         console.warn('[检测] 无法连接服务器，使用本地模式:', e.message);
         useServer = false;
+        loadLocalCache();
     }
+}
+
+async function syncFromServer() {
+    if (!useServer || isUploading || isSyncing) return;
+    isSyncing = true;
+    try {
+        const res = await fetch(`/api/cells?v=${VERSION}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const currentNames = Object.values(uploadedImages).map((x) => x.cellName).sort();
+        const nextNames = data.cells.map((x) => x.name).sort();
+        if (JSON.stringify(currentNames) !== JSON.stringify(nextNames)) {
+            applyServerCells(data.cells);
+            console.log('[同步] 检测到更新，已刷新拼图');
+        }
+    } catch (e) {
+        console.warn('[同步] 拉取失败:', e.message);
+    } finally {
+        isSyncing = false;
+    }
+}
+
+function startAutoSync() {
+    if (!useServer) return;
+    if (syncTimer) clearInterval(syncTimer);
+    syncTimer = setInterval(syncFromServer, SYNC_INTERVAL_MS);
 }
 
 // 上传图片
@@ -336,6 +406,7 @@ fileInput.addEventListener('change', async (e) => {
         cell.classList.add('has-image');
         renderCellImage(cell, imageUrl, currentEditIndex);
         updateUploadCount();
+        saveLocalCache();
     } catch (err) {
         alert('上传失败，请重试');
         cell.innerHTML = '';
@@ -370,6 +441,7 @@ deleteBtn.addEventListener('click', async () => {
         cell.classList.remove('has-image');
         cell.innerHTML = '';
         updateUploadCount();
+        saveLocalCache();
     } catch (err) {
         alert('删除失败，请重试');
         console.error(err);
@@ -400,6 +472,7 @@ resetBtn.addEventListener('click', async () => {
     }
 
     uploadedImages = {};
+    clearLocalCache();
     initGrid();
 });
 
@@ -569,6 +642,11 @@ window.addEventListener('load', async () => {
     cellColors = await extractCellColors(CONFIG.targetImage);
     console.log('[初始化] 颜色提取完成，共', cellColors.length, '个格子');
     await detectServerMode();
-    initGrid();
-    console.log(`[初始化] 完成。存储模式: ${useServer ? 'GitHub（持久化）' : '本地（刷新丢失）'}，已加载 ${Object.keys(uploadedImages).length} 张图片`);
+    if (!useServer) {
+        initGrid();
+    } else {
+        clearLocalCache();
+        startAutoSync();
+    }
+    console.log(`[初始化] 完成。存储模式: ${useServer ? 'GitHub（持久化）' : '本地（浏览器持久化）'}，已加载 ${Object.keys(uploadedImages).length} 张图片`);
 });
