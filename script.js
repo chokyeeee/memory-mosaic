@@ -16,7 +16,6 @@ let syncTimer = null;
 let isSyncing = false;
 const SYNC_INTERVAL_MS = CONFIG.syncIntervalMs || 5000;
 const LOCAL_CACHE_KEY = `memory-mosaic:v${VERSION}`;
-const DEBUG_RUN_ID = 'multi-sync-debug';
 
 // DOM元素
 const puzzleGrid = document.getElementById('puzzleGrid');
@@ -142,9 +141,6 @@ function readAsDataURL(file) {
 function saveLocalCache() {
     try {
         localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(uploadedImages));
-        // #region agent log
-        fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H2',location:'script.js:saveLocalCache',message:'Saved local cache',data:{key:LOCAL_CACHE_KEY,count:Object.keys(uploadedImages).length,useServer},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
     } catch (e) {
         console.warn('[本地缓存] 保存失败:', e.message);
     }
@@ -158,9 +154,6 @@ function loadLocalCache() {
         if (parsed && typeof parsed === 'object') {
             uploadedImages = parsed;
             console.log('[本地缓存] 已恢复图片数量:', Object.keys(uploadedImages).length);
-            // #region agent log
-            fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H2',location:'script.js:loadLocalCache',message:'Loaded local cache',data:{key:LOCAL_CACHE_KEY,count:Object.keys(uploadedImages).length},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
         }
     } catch (e) {
         console.warn('[本地缓存] 读取失败:', e.message);
@@ -198,9 +191,6 @@ async function detectServerMode() {
         if (res.ok) {
             useServer = true;
             const data = await res.json();
-            // #region agent log
-            fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H1',location:'script.js:detectServerMode',message:'Server mode enabled',data:{status:res.status,cells:data.cells.length,version:VERSION},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             console.log('[检测] 服务器模式已启用，已有图片:', data.cells.length, '张');
             console.log('[检测] 图片列表:', data.cells.map(c => c.name));
             const cachedRaw = localStorage.getItem(LOCAL_CACHE_KEY);
@@ -225,17 +215,11 @@ async function detectServerMode() {
             console.warn('[检测] /api/cells 返回非 200:', res.status, text);
             useServer = false;
             loadLocalCache();
-            // #region agent log
-            fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H1',location:'script.js:detectServerMode',message:'Server mode disabled by non-200',data:{status:res.status,version:VERSION},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
         }
     } catch (e) {
         console.warn('[检测] 无法连接服务器，使用本地模式:', e.message);
         useServer = false;
         loadLocalCache();
-        // #region agent log
-        fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H1',location:'script.js:detectServerMode',message:'Server mode disabled by exception',data:{error:e.message,version:VERSION},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
     }
 }
 
@@ -251,9 +235,6 @@ async function syncFromServer() {
         if (JSON.stringify(currentNames) !== JSON.stringify(nextNames)) {
             applyServerCells(data.cells);
             console.log('[同步] 检测到更新，已刷新拼图');
-            // #region agent log
-            fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H3',location:'script.js:syncFromServer',message:'Server sync updated grid',data:{beforeCount:currentNames.length,afterCount:nextNames.length},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
         }
     } catch (e) {
         console.warn('[同步] 拉取失败:', e.message);
@@ -266,9 +247,6 @@ function startAutoSync() {
     if (!useServer) return;
     if (syncTimer) clearInterval(syncTimer);
     syncTimer = setInterval(syncFromServer, SYNC_INTERVAL_MS);
-    // #region agent log
-    fetch('http://127.0.0.1:7605/ingest/63c64cc2-6646-44a1-8715-b23cbbb739bd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'880c58'},body:JSON.stringify({sessionId:'880c58',runId:DEBUG_RUN_ID,hypothesisId:'H3',location:'script.js:startAutoSync',message:'Started auto sync timer',data:{intervalMs:SYNC_INTERVAL_MS,useServer},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 }
 
 // 上传图片
