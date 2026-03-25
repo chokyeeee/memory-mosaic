@@ -16,6 +16,47 @@ let syncTimer = null;
 let isSyncing = false;
 const SYNC_INTERVAL_MS = CONFIG.syncIntervalMs || 5000;
 const LOCAL_CACHE_KEY = `memory-mosaic:v${VERSION}`;
+let bgCoverParams = null;
+let bgCoverSig = '';
+
+function ensureBgCoverParams() {
+    try {
+        const bgImgEl = document.getElementById('bgImage');
+        if (!bgImgEl || !bgImgEl.naturalWidth || !bgImgEl.naturalHeight) return null;
+
+        const bgRect = bgContainer.getBoundingClientRect();
+        const containerW = bgRect.width;
+        const containerH = bgRect.height;
+
+        const imgW = bgImgEl.naturalWidth;
+        const imgH = bgImgEl.naturalHeight;
+
+        const objFitSig = getComputedStyle(bgImgEl).objectFit || 'cover';
+        const objPos = getComputedStyle(bgImgEl).objectPosition || '50% 50%';
+        const objPosParts = objPos.split(' ').filter(Boolean);
+        const xPart = objPosParts[0] || '50%';
+        const yPart = objPosParts[1] || '50%';
+
+        const xPct = xPart.includes('%') ? parseFloat(xPart) / 100 : 0.5;
+        const yPct = yPart.includes('%') ? parseFloat(yPart) / 100 : 0.5;
+
+        const scale = Math.max(containerW / imgW, containerH / imgH);
+        const renderW = imgW * scale;
+        const renderH = imgH * scale;
+        const offsetX = (renderW - containerW) * xPct;
+        const offsetY = (renderH - containerH) * yPct;
+
+        const sig = `${Math.round(containerW)}x${Math.round(containerH)}|${imgW}x${imgH}|${objFitSig}|${objPos}`;
+        if (bgCoverSig !== sig) {
+            bgCoverSig = sig;
+            bgCoverParams = { containerW, containerH, imgW, imgH, renderW, renderH, offsetX, offsetY };
+        }
+
+        return bgCoverParams;
+    } catch (e) {
+        return null;
+    }
+}
 
 // DOM元素
 const puzzleGrid = document.getElementById('puzzleGrid');
@@ -301,12 +342,11 @@ function initGrid() {
         cell.dataset.name = getCellName(i);
         cell.title = `格子 ${getCellName(i)}`;
         cell.addEventListener('click', () => handleCellClick(i));
-
+        puzzleGrid.appendChild(cell);
         if (uploadedImages[i]) {
             cell.classList.add('has-image');
             renderCellImage(cell, uploadedImages[i].url, i);
         }
-        puzzleGrid.appendChild(cell);
     }
     updateUploadCount();
 }
@@ -324,13 +364,31 @@ function renderCellImage(cell, url, index) {
     const col = index % GRID_COLS;
     const tint = document.createElement('div');
     tint.className = 'cell-tint';
-    tint.style.backgroundImage = `url(${CONFIG.targetImage})`;
-    tint.style.backgroundSize = `${GRID_COLS * 100}% ${GRID_ROWS * 100}%`;
-    const xPos = GRID_COLS > 1 ? (col / (GRID_COLS - 1)) * 100 : 0;
-    const yPos = GRID_ROWS > 1 ? (row / (GRID_ROWS - 1)) * 100 : 0;
-    tint.style.backgroundPosition = `${xPos}% ${yPos}%`;
+
+    // 以 bgImage 的 object-fit: cover 裁剪结果为准，按像素定位每个格子的背景切片。
+    const params = ensureBgCoverParams();
+    const bgRect = bgContainer.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    const relX = cellRect.left - bgRect.left;
+    const relY = cellRect.top - bgRect.top;
+
+    if (params) {
+        tint.style.backgroundImage = `url(${CONFIG.targetImage})`;
+        tint.style.backgroundRepeat = 'no-repeat';
+        tint.style.backgroundSize = `${params.renderW}px ${params.renderH}px`;
+        tint.style.backgroundPosition = `${-(params.offsetX + relX)}px ${-(params.offsetY + relY)}px`;
+    } else {
+        // fallback：保留旧逻辑（在计算失败时仍可正常显示）
+        tint.style.backgroundImage = `url(${CONFIG.targetImage})`;
+        tint.style.backgroundSize = `${GRID_COLS * 100}% ${GRID_ROWS * 100}%`;
+        const xPos = GRID_COLS > 1 ? (col / (GRID_COLS - 1)) * 100 : 0;
+        const yPos = GRID_ROWS > 1 ? (row / (GRID_ROWS - 1)) * 100 : 0;
+        tint.style.backgroundPosition = `${xPos}% ${yPos}%`;
+    }
+
     tint.style.opacity = CONFIG.tintOpacity;
     cell.appendChild(tint);
+
 }
 
 // ========== 上传顺序（中心向外BFS） ==========
@@ -647,6 +705,8 @@ previewModal.addEventListener('click', (e) => {
 window.addEventListener('resize', () => {
     const width = puzzleGrid.clientWidth;
     puzzleGrid.style.height = `${(width * GRID_ROWS) / GRID_COLS}px`;
+    // 尺寸变化后需要重算 tint 的背景裁剪/定位，保证与底图严格对齐。
+    initGrid();
 });
 
 // ========== 初始化 ==========
